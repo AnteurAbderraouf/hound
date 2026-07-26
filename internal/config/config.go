@@ -10,6 +10,7 @@ type Config struct {
 	DNSAddr  string
 	HTTPAddr string
 	Upstream []string
+	Headless bool
 }
 
 func Load() Config {
@@ -18,6 +19,7 @@ func Load() Config {
 		DNSAddr:  getEnv("HOUND_DNS_ADDR", ":53"),
 		HTTPAddr: getEnv("HOUND_HTTP_ADDR", ":8080"),
 		Upstream: splitCSV(getEnv("HOUND_UPSTREAM", "1.1.1.1:53,8.8.8.8:53")),
+		Headless: getEnv("HOUND_HEADLESS", "") != "",
 	}
 }
 

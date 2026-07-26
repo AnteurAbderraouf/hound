@@ -5,15 +5,18 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/AnteurAbderraouf/hound/internal/api"
 	"github.com/AnteurAbderraouf/hound/internal/config"
 	"github.com/AnteurAbderraouf/hound/internal/dns"
 	"github.com/AnteurAbderraouf/hound/internal/storage"
+	"github.com/AnteurAbderraouf/hound/internal/window"
 )
 
-const version = "0.0.2"
+const version = "0.0.3"
 
 // sinkAdapter bridges dns.Query into storage.Query so the two packages
 // don't depend on each other's types.
@@ -76,7 +79,20 @@ func main() {
 		}
 	}()
 
-	log.Info("ready · open http://localhost" + cfg.HTTPAddr)
+	uiURL := "http://localhost" + cfg.HTTPAddr
+	if strings.HasPrefix(cfg.HTTPAddr, ":") {
+		uiURL = "http://localhost" + cfg.HTTPAddr
+	}
+	log.Info("ready · " + uiURL)
+
+	if !cfg.Headless {
+		// give the HTTP server a moment to actually be reachable before
+		// pointing the window at it
+		time.Sleep(300 * time.Millisecond)
+		if err := window.Open(uiURL, log); err != nil {
+			log.Warn("failed to open ui window; open the url manually", "err", err)
+		}
+	}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)

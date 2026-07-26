@@ -15,9 +15,11 @@ dist/
 # SQLite (runtime data)
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
-data/*.db
+data/*.db*
 
 # Node / frontend
 node_modules/
