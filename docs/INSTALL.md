@@ -1,0 +1,139 @@
+# Installation
+
+hound ships as a single binary and as a Docker image. Pick the option
+that best matches how you already run stuff at home.
+
+- [1. Docker (recommended for NAS, home servers, Linux boxes)](#1-docker)
+- [2. Native binary (Windows / macOS / Linux desktop)](#2-native-binary)
+- [3. Build from source](#3-build-from-source)
+- [Configuration reference (env vars)](#configuration-reference)
+- [Verifying it works](#verifying-it-works)
+
+---
+
+## 1. Docker
+
+The `docker-compose.yml` shipped in the repo is the fastest path. It uses
+`network_mode: host` so hound can see the real client IPs on your LAN
+(without host mode, every query would appear to come from the Docker
+bridge).
+
+```bash
+git clone https://github.com/AnteurAbderraouf/hound.git
+cd hound
+docker compose up -d
+```
+
+That's it. hound is now listening on:
+
+- **UDP/TCP :53** — the DNS server
+- **HTTP :8080** — the web UI (open `http://<your-host-ip>:8080`)
+
+To see logs: `docker compose logs -f hound`
+
+To stop: `docker compose down`
+
+The SQLite database persists in `./data/hound.db` on the host.
+
+> **Note.** `network_mode: host` only works on Linux hosts. If you insist
+> on running Docker on Windows or macOS, use `docker run -p 53:53/udp
+> -p 53:53/tcp -p 8080:8080` instead — but expect every query to look
+> like it came from the Docker gateway, which defeats per-device
+> tracking. Prefer the native binary on Windows/macOS.
+
+---
+
+## 2. Native binary
+
+_Pre-built binaries land at v0.1.0. For now, use option 3 (build from
+source)._
+
+### Windows
+
+Once binaries ship, download `hound-windows-amd64.exe`, drop it in
+`C:\Program Files\hound\`, and double-click. A chromeless Edge/Chrome
+window opens with the UI.
+
+Because DNS port 53 is a privileged port on Windows, you have two
+choices:
+
+- **Run as Administrator** so hound can bind :53 (easiest for real use)
+- **Use a non-privileged port** for testing:
+  ```powershell
+  $env:HOUND_DNS_ADDR = ":5300"
+  .\hound.exe
+  ```
+  and then point a device at `192.168.X.X:5300` for tests.
+
+### macOS
+
+`hound-darwin-arm64` (Apple Silicon) or `hound-darwin-amd64` (Intel).
+Same story: `sudo ./hound` to bind :53, or use a high port for testing.
+
+### Linux
+
+`hound-linux-amd64` or `hound-linux-arm64`. Recommended: install as a
+systemd service. A sample unit file will ship at v0.1.0.
+
+---
+
+## 3. Build from source
+
+You need Go 1.25 or newer.
+
+```bash
+git clone https://github.com/AnteurAbderraouf/hound.git
+cd hound
+
+# using make
+make build       # -> ./bin/hound(.exe)
+
+# or plain go
+go build -o bin/hound ./cmd/hound
+```
+
+Run it:
+
+```bash
+# Linux/macOS
+sudo ./bin/hound          # :53 needs root
+
+# Windows
+.\bin\hound.exe           # as Administrator
+
+# Or on a non-privileged port (any OS, any user)
+HOUND_DNS_ADDR=:5300 HOUND_HTTP_ADDR=:8085 ./bin/hound
+```
+
+---
+
+## Configuration reference
+
+hound is configured through environment variables (all optional).
+
+| Variable            | Default                | Meaning                                                                 |
+|---------------------|------------------------|-------------------------------------------------------------------------|
+| `HOUND_DB_PATH`     | `hound.db`             | SQLite database file. Directory must be writable.                       |
+| `HOUND_DNS_ADDR`    | `:53`                  | Address the DNS server listens on. Use `:5300` for testing without root.|
+| `HOUND_HTTP_ADDR`   | `:8080`                | Address the web UI listens on.                                          |
+| `HOUND_UPSTREAM`    | `1.1.1.1:53,8.8.8.8:53`| Comma-separated list of upstream DNS resolvers. Round-robin.            |
+| `HOUND_HEADLESS`    | `` (unset)             | If set to any non-empty value, don't auto-open the UI window on launch. |
+
+---
+
+## Verifying it works
+
+Once hound is running:
+
+1. Open the UI at `http://<your-host-ip>:8080` (or the auto-opened window
+   if running natively). You should see the retro-terminal UI, empty of
+   queries.
+2. From another machine on the LAN, send a DNS query to your host:
+   ```bash
+   dig @<your-host-ip> example.com          # linux/mac
+   nslookup example.com <your-host-ip>       # windows
+   ```
+3. The query should appear in the "live" panel within 2 seconds, tagged
+   with a category (or "other" for unknown domains).
+4. Only after this smoke test works, [configure your router](ROUTER-SETUP.md)
+   to use your host as the primary DNS.

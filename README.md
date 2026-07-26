@@ -21,7 +21,7 @@ A retro-terminal DNS monitor for home networks — no hardware, no fuss, just cl
 
 ---
 
-> ⚠️ **Early development — nothing works yet.** Star & watch for the v0.1 release.
+> ⚠️ **Early development.** Core is working (DNS server, categorization, UI window, SQLite storage) but there's no packaged release yet — build from source for now. Star & watch for the v0.1 release with pre-built binaries.
 
 ## What is this?
 
@@ -61,7 +61,32 @@ A retro-terminal DNS monitor for home networks — no hardware, no fuss, just cl
 
 ## Quick start
 
-_Nothing yet — check back after v0.1._
+**Docker** (easiest on Linux / NAS / homelab):
+
+```bash
+git clone https://github.com/AnteurAbderraouf/hound.git
+cd hound
+docker compose up -d
+```
+
+Then point your router's **primary DNS** at your host (secondary DNS →
+`1.1.1.1` as fallback). See [ROUTER-SETUP.md](docs/ROUTER-SETUP.md) for
+the exact clicks per ISP box.
+
+**From source** (Windows / macOS / dev):
+
+```bash
+git clone https://github.com/AnteurAbderraouf/hound.git
+cd hound
+go build -o bin/hound ./cmd/hound
+./bin/hound        # sudo on linux/mac to bind :53
+```
+
+A retro-terminal UI window pops open automatically (no browser needed).
+
+Read the [full install guide](docs/INSTALL.md), and if you're weighing
+"should I even install this?", read the [FAQ](docs/FAQ.md) — especially
+the sections on what hound does and doesn't see.
 
 ## How it works
 
