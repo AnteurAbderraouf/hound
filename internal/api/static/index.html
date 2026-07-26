@@ -178,6 +178,71 @@ header .status {
   font-size: 11px;
 }
 
+/* devices table */
+
+.devices {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.devices th {
+  text-align: left;
+  color: var(--dim);
+  font-weight: 500;
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px dashed rgba(0, 122, 31, 0.4);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.devices td {
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px dashed rgba(0, 122, 31, 0.15);
+  color: var(--fg);
+  vertical-align: middle;
+}
+
+.devices tr:last-child td { border-bottom: none; }
+
+.devices .name {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.devices .ip { color: var(--cyan); }
+.devices .mac { color: var(--dim); font-size: 11px; }
+.devices .host { color: var(--amber); font-size: 11px; }
+.devices .seen { color: var(--dim); font-size: 11px; }
+
+.devices button.rename {
+  background: transparent;
+  border: 1px solid var(--dim);
+  color: var(--dim);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.devices button.rename:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.devices input.rename-input {
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 2px 6px;
+  outline: none;
+  width: 100%;
+}
+
 .empty {
   padding: 20px;
   text-align: center;
@@ -207,13 +272,19 @@ footer a:hover {
 <div class="frame" data-label="system" role="banner">
   <header>
     <div class="title">> hound<span class="cursor"></span></div>
-    <div class="subtitle">retro-terminal dns monitor · v0.0.7</div>
+    <div class="subtitle">retro-terminal dns monitor · v0.0.8</div>
     <div class="status">status: <span id="status">initializing...</span></div>
   </header>
 </div>
 
 <div class="frame" data-label="categories">
   <div class="legend" id="legend"></div>
+</div>
+
+<div class="frame" data-label="devices">
+  <div id="devices">
+    <div class="empty">no devices seen yet</div>
+  </div>
 </div>
 
 <div class="frame" data-label="live · recent dns queries">
@@ -250,10 +321,92 @@ async function loadCategories() {
   }
 }
 
-async function refresh() {
+function relativeTime(iso) {
+  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return seconds + 's ago';
+  if (seconds < 3600) return Math.round(seconds / 60) + 'm ago';
+  if (seconds < 86400) return Math.round(seconds / 3600) + 'h ago';
+  return Math.round(seconds / 86400) + 'd ago';
+}
+
+async function refreshDevices() {
+  const container = document.getElementById('devices');
+  try {
+    const res = await fetch('/api/devices');
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="empty">no devices seen yet</div>';
+      return;
+    }
+    const rows = data.map(d => `
+      <tr data-ip="${escapeHtml(d.ip)}">
+        <td class="name" data-role="name">${escapeHtml(d.display_name)}</td>
+        <td class="ip">${escapeHtml(d.ip)}</td>
+        <td class="mac">${escapeHtml(d.mac || '—')}</td>
+        <td class="host">${escapeHtml(d.hostname || '—')}</td>
+        <td class="seen" title="${escapeHtml(d.last_seen)}">${relativeTime(d.last_seen)}</td>
+        <td><button class="rename" data-ip="${escapeHtml(d.ip)}" data-current="${escapeHtml(d.custom_name || '')}">rename</button></td>
+      </tr>`).join('');
+    container.innerHTML = `<table class="devices">
+      <thead>
+        <tr><th>name</th><th>ip</th><th>mac</th><th>hostname</th><th>last seen</th><th></th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    container.querySelectorAll('button.rename').forEach(btn => {
+      btn.addEventListener('click', () => startRename(btn));
+    });
+  } catch (err) {
+    console.error('failed to load devices', err);
+  }
+}
+
+function startRename(btn) {
+  const tr = btn.closest('tr');
+  const nameCell = tr.querySelector('[data-role="name"]');
+  const ip = btn.getAttribute('data-ip');
+  const current = btn.getAttribute('data-current') || nameCell.textContent.trim();
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'rename-input';
+  input.value = current;
+  input.placeholder = 'new name (empty to clear)';
+
+  nameCell.innerHTML = '';
+  nameCell.appendChild(input);
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    const newName = input.value.trim();
+    try {
+      const res = await fetch('/api/devices/' + encodeURIComponent(ip), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_name: newName }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await refreshDevices();
+    } catch (err) {
+      console.error('rename failed', err);
+      nameCell.textContent = current;
+    }
+  };
+  const cancel = () => { nameCell.textContent = current; };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') commit();
+    else if (e.key === 'Escape') cancel();
+  });
+  input.addEventListener('blur', commit);
+}
+
+async function refreshQueries() {
   const statusEl = document.getElementById('status');
   const container = document.getElementById('queries');
-
   try {
     const res = await fetch('/api/queries?limit=100');
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -285,8 +438,10 @@ async function refresh() {
 }
 
 loadCategories();
-refresh();
-setInterval(refresh, 2000);
+refreshDevices();
+refreshQueries();
+setInterval(refreshQueries, 2000);
+setInterval(refreshDevices, 5000);
 </script>
 
 </body>

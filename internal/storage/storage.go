@@ -22,6 +22,17 @@ type Query struct {
 	Category  string    `json:"category"`
 }
 
+// Device is the persisted view of a machine on the LAN. DisplayName is
+// computed by the API layer, not stored.
+type Device struct {
+	IP         string     `json:"ip"`
+	MAC        string     `json:"mac"`
+	Hostname   string     `json:"hostname"`
+	CustomName string     `json:"custom_name"`
+	FirstSeen  time.Time  `json:"first_seen"`
+	LastSeen   time.Time  `json:"last_seen"`
+}
+
 type Store struct {
 	db *sql.DB
 }
@@ -66,6 +77,11 @@ func (s *Store) migrate() error {
 	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_queries_category ON queries(category)`); err != nil {
 		return fmt.Errorf("create idx_queries_category: %w", err)
 	}
+	// v0.0.8: devices.last_seen index (table itself was in the initial
+	// schema but never used; ensure the ordering index exists).
+	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen DESC)`); err != nil {
+		return fmt.Errorf("create idx_devices_last_seen: %w", err)
+	}
 	return nil
 }
 
@@ -86,6 +102,8 @@ func (s *Store) columnExists(table, column string) (bool, error) {
 func (s *Store) Close() error {
 	return s.db.Close()
 }
+
+// ---------- queries ---------------------------------------------------------
 
 func (s *Store) InsertQuery(q Query) error {
 	_, err := s.db.Exec(
@@ -118,6 +136,75 @@ func (s *Store) RecentQueries(limit int) ([]Query, error) {
 		}
 		q.Responded = responded != 0
 		out = append(out, q)
+	}
+	return out, rows.Err()
+}
+
+// ---------- devices ---------------------------------------------------------
+
+// UpsertDevice writes device presence at seenAt. Empty mac/hostname
+// values NEVER overwrite an already-populated column: this lets the
+// tracker call UpsertDevice with a partial enrichment result without
+// wiping good data captured from a previous, more successful lookup.
+// custom_name is untouched here — it lives on its own path via
+// RenameDevice.
+func (s *Store) UpsertDevice(ip, mac, hostname string, seenAt time.Time) error {
+	_, err := s.db.Exec(
+		`INSERT INTO devices (ip, mac, hostname, first_seen, last_seen)
+		 VALUES (?, ?, ?, ?, ?)
+		 ON CONFLICT(ip) DO UPDATE SET
+		   last_seen = excluded.last_seen,
+		   mac = CASE WHEN excluded.mac != '' THEN excluded.mac ELSE devices.mac END,
+		   hostname = CASE WHEN excluded.hostname != '' THEN excluded.hostname ELSE devices.hostname END`,
+		ip, mac, hostname, seenAt, seenAt,
+	)
+	return err
+}
+
+// RenameDevice sets custom_name for an existing device. Returns
+// sql.ErrNoRows if the device is unknown so the API can 404.
+func (s *Store) RenameDevice(ip, customName string) error {
+	res, err := s.db.Exec(
+		`UPDATE devices SET custom_name = ? WHERE ip = ?`,
+		customName, ip,
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// ListDevices returns all devices ordered by most-recently-seen first.
+func (s *Store) ListDevices() ([]Device, error) {
+	rows, err := s.db.Query(
+		`SELECT ip,
+		        COALESCE(mac, ''),
+		        COALESCE(hostname, ''),
+		        COALESCE(custom_name, ''),
+		        first_seen,
+		        last_seen
+		 FROM devices
+		 ORDER BY last_seen DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]Device, 0, 32)
+	for rows.Next() {
+		var d Device
+		if err := rows.Scan(&d.IP, &d.MAC, &d.Hostname, &d.CustomName, &d.FirstSeen, &d.LastSeen); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
 	}
 	return out, rows.Err()
 }

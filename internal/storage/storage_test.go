@@ -114,3 +114,71 @@ func TestOpenFreshDb(t *testing.T) {
 		t.Errorf("expected db file at %s: %v", path, err)
 	}
 }
+
+// TestDeviceLifecycle covers the Upsert / List / Rename flow and the
+// "don't overwrite good data with empty" guarantee that keeps partial
+// enrichment attempts from wiping a real MAC or hostname.
+func TestDeviceLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	store, err := Open(filepath.Join(dir, "devices.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close()
+
+	t0 := time.Now().Add(-time.Hour)
+	t1 := time.Now()
+
+	// First sighting: only IP, no ARP/hostname available yet.
+	if err := store.UpsertDevice("192.168.1.42", "", "", t0); err != nil {
+		t.Fatalf("Upsert 1: %v", err)
+	}
+	// Second sighting: ARP resolved a MAC.
+	if err := store.UpsertDevice("192.168.1.42", "aa:bb:cc:dd:ee:ff", "", t0.Add(time.Second)); err != nil {
+		t.Fatalf("Upsert 2: %v", err)
+	}
+	// Third sighting: reverse DNS resolved a hostname.
+	if err := store.UpsertDevice("192.168.1.42", "", "iPhone-de-Lea", t1); err != nil {
+		t.Fatalf("Upsert 3: %v", err)
+	}
+	// Fourth sighting: ARP now fails (empty MAC). Existing MAC must NOT
+	// be overwritten.
+	if err := store.UpsertDevice("192.168.1.42", "", "", t1.Add(time.Second)); err != nil {
+		t.Fatalf("Upsert 4: %v", err)
+	}
+
+	devs, err := store.ListDevices()
+	if err != nil {
+		t.Fatalf("ListDevices: %v", err)
+	}
+	if len(devs) != 1 {
+		t.Fatalf("want 1 device, got %d", len(devs))
+	}
+	d := devs[0]
+	if d.MAC != "aa:bb:cc:dd:ee:ff" {
+		t.Errorf("MAC lost across upserts: got %q", d.MAC)
+	}
+	if d.Hostname != "iPhone-de-Lea" {
+		t.Errorf("Hostname lost across upserts: got %q", d.Hostname)
+	}
+	if d.CustomName != "" {
+		t.Errorf("CustomName should default empty, got %q", d.CustomName)
+	}
+
+	if err := store.RenameDevice("192.168.1.42", "iPhone Lea"); err != nil {
+		t.Fatalf("RenameDevice: %v", err)
+	}
+	devs, _ = store.ListDevices()
+	if devs[0].CustomName != "iPhone Lea" {
+		t.Errorf("CustomName after rename = %q", devs[0].CustomName)
+	}
+	// Rename must not touch MAC/hostname.
+	if devs[0].MAC != "aa:bb:cc:dd:ee:ff" || devs[0].Hostname != "iPhone-de-Lea" {
+		t.Error("rename accidentally touched enriched fields")
+	}
+
+	// Renaming an unknown device returns sql.ErrNoRows.
+	if err := store.RenameDevice("10.0.0.99", "x"); err != sql.ErrNoRows {
+		t.Errorf("Rename unknown device: got %v, want sql.ErrNoRows", err)
+	}
+}

@@ -12,20 +12,23 @@ import (
 	"github.com/AnteurAbderraouf/hound/internal/api"
 	"github.com/AnteurAbderraouf/hound/internal/categorizer"
 	"github.com/AnteurAbderraouf/hound/internal/config"
+	"github.com/AnteurAbderraouf/hound/internal/devices"
 	"github.com/AnteurAbderraouf/hound/internal/dns"
 	"github.com/AnteurAbderraouf/hound/internal/storage"
 	"github.com/AnteurAbderraouf/hound/internal/window"
 )
 
-const version = "0.0.7"
+const version = "0.0.8"
 
 // sinkAdapter bridges dns.Query into storage.Query so the two packages
 // don't depend on each other's types, and enriches each query with its
-// category before persisting.
+// category before persisting. It also notifies the device tracker so
+// MAC/hostname enrichment can happen off the DNS hot path.
 type sinkAdapter struct {
-	store *storage.Store
-	cat   *categorizer.Categorizer
-	log   *slog.Logger
+	store   *storage.Store
+	cat     *categorizer.Categorizer
+	tracker *devices.Tracker
+	log     *slog.Logger
 }
 
 func (a *sinkAdapter) Log(q dns.Query) {
@@ -40,6 +43,9 @@ func (a *sinkAdapter) Log(q dns.Query) {
 	if err := a.store.InsertQuery(sq); err != nil {
 		a.log.Error("failed to store query", "err", err)
 	}
+	// fire-and-forget: tracker maintains its own async worker, this
+	// call is O(1) and non-blocking.
+	a.tracker.Observe(q.ClientIP, q.Time)
 }
 
 func main() {
@@ -69,10 +75,13 @@ func main() {
 	}
 	defer store.Close()
 
-	sink := &sinkAdapter{store: store, cat: cat, log: log}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	tracker := devices.NewTracker(devices.NewResolver(), store, log)
+	tracker.Start(ctx)
+
+	sink := &sinkAdapter{store: store, cat: cat, tracker: tracker, log: log}
 
 	dnsServer := dns.New(cfg.DNSAddr, cfg.Upstream, sink, log)
 	apiServer := &api.Server{
