@@ -10,18 +10,21 @@ import (
 	"time"
 
 	"github.com/AnteurAbderraouf/hound/internal/api"
+	"github.com/AnteurAbderraouf/hound/internal/categorizer"
 	"github.com/AnteurAbderraouf/hound/internal/config"
 	"github.com/AnteurAbderraouf/hound/internal/dns"
 	"github.com/AnteurAbderraouf/hound/internal/storage"
 	"github.com/AnteurAbderraouf/hound/internal/window"
 )
 
-const version = "0.0.3"
+const version = "0.0.4"
 
 // sinkAdapter bridges dns.Query into storage.Query so the two packages
-// don't depend on each other's types.
+// don't depend on each other's types, and enriches each query with its
+// category before persisting.
 type sinkAdapter struct {
 	store *storage.Store
+	cat   *categorizer.Categorizer
 	log   *slog.Logger
 }
 
@@ -32,6 +35,7 @@ func (a *sinkAdapter) Log(q dns.Query) {
 		Domain:    q.Domain,
 		Type:      q.Type,
 		Responded: q.Responded,
+		Category:  a.cat.Categorize(q.Domain),
 	}
 	if err := a.store.InsertQuery(sq); err != nil {
 		a.log.Error("failed to store query", "err", err)
@@ -48,7 +52,15 @@ func main() {
 		"dns_addr", cfg.DNSAddr,
 		"http_addr", cfg.HTTPAddr,
 		"upstream", cfg.Upstream,
+		"headless", cfg.Headless,
 	)
+
+	cat, err := categorizer.New()
+	if err != nil {
+		log.Error("failed to load categorizer", "err", err)
+		os.Exit(1)
+	}
+	log.Info("categorizer loaded", "categories", len(cat.Categories()))
 
 	store, err := storage.Open(cfg.DBPath)
 	if err != nil {
@@ -57,13 +69,18 @@ func main() {
 	}
 	defer store.Close()
 
-	sink := &sinkAdapter{store: store, log: log}
+	sink := &sinkAdapter{store: store, cat: cat, log: log}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	dnsServer := dns.New(cfg.DNSAddr, cfg.Upstream, sink, log)
-	apiServer := &api.Server{Addr: cfg.HTTPAddr, Store: store, Log: log}
+	apiServer := &api.Server{
+		Addr:        cfg.HTTPAddr,
+		Store:       store,
+		Categorizer: cat,
+		Log:         log,
+	}
 
 	go func() {
 		if err := dnsServer.Start(ctx); err != nil && err != context.Canceled {
@@ -80,14 +97,12 @@ func main() {
 	}()
 
 	uiURL := "http://localhost" + cfg.HTTPAddr
-	if strings.HasPrefix(cfg.HTTPAddr, ":") {
-		uiURL = "http://localhost" + cfg.HTTPAddr
+	if !strings.HasPrefix(cfg.HTTPAddr, ":") {
+		uiURL = "http://" + cfg.HTTPAddr
 	}
 	log.Info("ready · " + uiURL)
 
 	if !cfg.Headless {
-		// give the HTTP server a moment to actually be reachable before
-		// pointing the window at it
 		time.Sleep(300 * time.Millisecond)
 		if err := window.Open(uiURL, log); err != nil {
 			log.Warn("failed to open ui window; open the url manually", "err", err)

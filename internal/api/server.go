@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/AnteurAbderraouf/hound/internal/categorizer"
 	"github.com/AnteurAbderraouf/hound/internal/storage"
 )
 
@@ -15,9 +16,10 @@ import (
 var staticFS embed.FS
 
 type Server struct {
-	Addr  string
-	Store *storage.Store
-	Log   *slog.Logger
+	Addr        string
+	Store       *storage.Store
+	Categorizer *categorizer.Categorizer
+	Log         *slog.Logger
 }
 
 func (s *Server) Start() error {
@@ -25,6 +27,7 @@ func (s *Server) Start() error {
 
 	mux.HandleFunc("/api/health", s.handleHealth)
 	mux.HandleFunc("/api/queries", s.handleQueries)
+	mux.HandleFunc("/api/categories", s.handleCategories)
 
 	sub, err := fs.Sub(staticFS, "static")
 	if err != nil {
@@ -56,6 +59,16 @@ func (s *Server) handleQueries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, queries)
+}
+
+// handleCategories exposes the name -> color map so the UI does not need to
+// hardcode the palette.
+func (s *Server) handleCategories(w http.ResponseWriter, r *http.Request) {
+	if s.Categorizer == nil {
+		writeJSON(w, http.StatusOK, map[string]string{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.Categorizer.Categories())
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

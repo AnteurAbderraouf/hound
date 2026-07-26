@@ -100,6 +100,30 @@ header .status {
   50%, 100% { opacity: 0; }
 }
 
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.legend .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.legend .chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .query {
   padding: 3px 0;
   font-size: 13px;
@@ -126,6 +150,18 @@ header .status {
   margin-right: 8px;
   display: inline-block;
   min-width: 48px;
+}
+
+.query .cat {
+  display: inline-block;
+  min-width: 90px;
+  margin-right: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  text-align: center;
 }
 
 .query .domain {
@@ -171,9 +207,13 @@ footer a:hover {
 <div class="frame" data-label="system" role="banner">
   <header>
     <div class="title">> hound<span class="cursor"></span></div>
-    <div class="subtitle">retro-terminal dns monitor · v0.0.3</div>
+    <div class="subtitle">retro-terminal dns monitor · v0.0.4</div>
     <div class="status">status: <span id="status">initializing...</span></div>
   </header>
+</div>
+
+<div class="frame" data-label="categories">
+  <div class="legend" id="legend"></div>
 </div>
 
 <div class="frame" data-label="live · recent dns queries">
@@ -191,6 +231,23 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[c]);
+}
+
+let CATEGORIES = {};
+
+async function loadCategories() {
+  try {
+    const res = await fetch('/api/categories');
+    CATEGORIES = await res.json();
+    const legend = document.getElementById('legend');
+    legend.innerHTML = Object.entries(CATEGORIES)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, color]) =>
+        `<span class="chip" style="color: ${escapeHtml(color)}"><span class="dot"></span>${escapeHtml(name)}</span>`
+      ).join('');
+  } catch (err) {
+    console.error('failed to load categories', err);
+  }
 }
 
 async function refresh() {
@@ -213,7 +270,9 @@ async function refresh() {
       const t = new Date(q.ts);
       const ts = t.toISOString().substr(11, 8);
       const failed = q.responded ? '' : 'failed';
-      return `<div class="query ${failed}"><span class="ts">${ts}</span><span class="ip">${escapeHtml(q.client_ip)}</span><span class="type">${escapeHtml(q.type)}</span><span class="domain">${escapeHtml(q.domain)}</span></div>`;
+      const cat = q.category || 'other';
+      const color = CATEGORIES[cat] || '#6b7280';
+      return `<div class="query ${failed}"><span class="ts">${ts}</span><span class="ip">${escapeHtml(q.client_ip)}</span><span class="type">${escapeHtml(q.type)}</span><span class="cat" style="color: ${escapeHtml(color)}">${escapeHtml(cat)}</span><span class="domain">${escapeHtml(q.domain)}</span></div>`;
     }).join('');
 
     statusEl.textContent = `online · ${data.length} recent queries · ${new Date().toLocaleTimeString()}`;
@@ -225,6 +284,7 @@ async function refresh() {
   }
 }
 
+loadCategories();
 refresh();
 setInterval(refresh, 2000);
 </script>

@@ -1,0 +1,260 @@
+# hound category database
+# ---------------------------------------------------------------------------
+# Each entry declares a category with a color (hex, used by the UI) and a
+# list of second-level domains. Matching is done on the full domain and then
+# on progressive parent suffixes, so `m.youtube.com` matches `youtube.com`.
+#
+# Contributing new domains: keep them lowercase, no protocol, no path,
+# no leading dot. Prefer the shortest matching suffix (e.g. `google.com`
+# rather than `mail.google.com`).
+# ---------------------------------------------------------------------------
+
+categories:
+
+  adult:
+    color: "#ff3e3e"
+    domains:
+      - pornhub.com
+      - xvideos.com
+      - xnxx.com
+      - redtube.com
+      - xhamster.com
+      - youporn.com
+      - onlyfans.com
+      - chaturbate.com
+      - stripchat.com
+      - livejasmin.com
+      - brazzers.com
+      - spankbang.com
+
+  social:
+    color: "#00d9ff"
+    domains:
+      - tiktok.com
+      - tiktokcdn.com
+      - instagram.com
+      - cdninstagram.com
+      - facebook.com
+      - fbcdn.net
+      - twitter.com
+      - x.com
+      - twimg.com
+      - snapchat.com
+      - snap.com
+      - reddit.com
+      - redditstatic.com
+      - threads.net
+      - pinterest.com
+      - linkedin.com
+      - tumblr.com
+      - bsky.app
+      - mastodon.social
+
+  streaming:
+    color: "#a855f7"
+    domains:
+      - youtube.com
+      - ytimg.com
+      - youtu.be
+      - googlevideo.com
+      - netflix.com
+      - nflxvideo.net
+      - nflximg.net
+      - twitch.tv
+      - jtvnw.net
+      - ttvnw.net
+      - primevideo.com
+      - aiv-cdn.net
+      - disneyplus.com
+      - hulu.com
+      - hbomax.com
+      - max.com
+      - paramountplus.com
+      - peacocktv.com
+      - crunchyroll.com
+      - spotify.com
+      - scdn.co
+      - deezer.com
+      - dzcdn.net
+      - soundcloud.com
+      - apple.com
+      - itunes.apple.com
+
+  gaming:
+    color: "#ffb800"
+    domains:
+      - steampowered.com
+      - steamcommunity.com
+      - steamstatic.com
+      - epicgames.com
+      - unrealengine.com
+      - riotgames.com
+      - leagueoflegends.com
+      - blizzard.com
+      - battle.net
+      - ea.com
+      - origin.com
+      - ubisoft.com
+      - ubi.com
+      - roblox.com
+      - rbxcdn.com
+      - minecraft.net
+      - mojang.com
+      - nintendo.net
+      - nintendo.com
+      - xbox.com
+      - xboxlive.com
+      - playstation.net
+      - playstation.com
+      - sony.com
+      - fortnite.com
+      - among.us
+      - innersloth.com
+
+  messaging:
+    color: "#22c55e"
+    domains:
+      - whatsapp.com
+      - whatsapp.net
+      - telegram.org
+      - t.me
+      - signal.org
+      - discord.com
+      - discordapp.com
+      - discord.gg
+      - messenger.com
+      - viber.com
+      - line.me
+      - wechat.com
+      - kik.com
+
+  education:
+    color: "#3b82f6"
+    domains:
+      - wikipedia.org
+      - wikimedia.org
+      - khanacademy.org
+      - coursera.org
+      - udemy.com
+      - edx.org
+      - duolingo.com
+      - scratch.mit.edu
+      - wolframalpha.com
+      - openai.com
+      - anthropic.com
+      - claude.ai
+      - chatgpt.com
+      - google.com
+      - bing.com
+      - duckduckgo.com
+      - ecosia.org
+      - qwant.com
+      - britannica.com
+      - stackoverflow.com
+      - github.com
+      - githubusercontent.com
+
+  shopping:
+    color: "#f472b6"
+    domains:
+      - amazon.com
+      - amazon.fr
+      - amazon.co.uk
+      - amazon.de
+      - amazon.es
+      - amazon.it
+      - amazon.ca
+      - media-amazon.com
+      - ssl-images-amazon.com
+      - ebay.com
+      - ebay.fr
+      - aliexpress.com
+      - alibaba.com
+      - wish.com
+      - shein.com
+      - temu.com
+      - etsy.com
+      - walmart.com
+      - target.com
+      - cdiscount.com
+      - fnac.com
+      - darty.com
+      - leboncoin.fr
+      - vinted.fr
+      - vinted.com
+
+  news:
+    color: "#eab308"
+    domains:
+      - nytimes.com
+      - washingtonpost.com
+      - bbc.com
+      - bbc.co.uk
+      - cnn.com
+      - foxnews.com
+      - reuters.com
+      - lemonde.fr
+      - lefigaro.fr
+      - liberation.fr
+      - francetvinfo.fr
+      - france24.com
+      - lequipe.fr
+      - 20minutes.fr
+      - spiegel.de
+      - zeit.de
+      - elpais.com
+      - repubblica.it
+      - aljazeera.com
+
+  productivity:
+    color: "#06b6d4"
+    domains:
+      - github.com
+      - githubusercontent.com
+      - gitlab.com
+      - bitbucket.org
+      - notion.so
+      - slack.com
+      - zoom.us
+      - zoomgov.com
+      - teams.microsoft.com
+      - office.com
+      - office365.com
+      - outlook.com
+      - live.com
+      - google.com
+      - googleusercontent.com
+      - googleapis.com
+      - drive.google.com
+      - docs.google.com
+      - dropbox.com
+      - onedrive.com
+      - trello.com
+      - asana.com
+      - linear.app
+      - figma.com
+
+  ads_tracking:
+    color: "#6b7280"
+    domains:
+      - doubleclick.net
+      - googleadservices.com
+      - googlesyndication.com
+      - google-analytics.com
+      - googletagmanager.com
+      - googletagservices.com
+      - facebook.net
+      - hotjar.com
+      - mixpanel.com
+      - segment.com
+      - segment.io
+      - amplitude.com
+      - adnxs.com
+      - adsafeprotected.com
+      - moatads.com
+      - taboola.com
+      - outbrain.com
+      - criteo.com
+      - criteo.net
+      - branch.io
+      - appsflyer.com

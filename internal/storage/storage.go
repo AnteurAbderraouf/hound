@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	_ "embed"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -18,6 +19,7 @@ type Query struct {
 	Domain    string    `json:"domain"`
 	Type      string    `json:"type"`
 	Responded bool      `json:"responded"`
+	Category  string    `json:"category"`
 }
 
 type Store struct {
@@ -38,6 +40,14 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	// migrate: if an older db exists without the category column, add it.
+	// harmless no-op when the column already exists thanks to the error check.
+	if _, err := db.Exec(`ALTER TABLE queries ADD COLUMN category TEXT NOT NULL DEFAULT 'other'`); err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			db.Close()
+			return nil, err
+		}
+	}
 	return &Store{db: db}, nil
 }
 
@@ -47,15 +57,16 @@ func (s *Store) Close() error {
 
 func (s *Store) InsertQuery(q Query) error {
 	_, err := s.db.Exec(
-		`INSERT INTO queries (ts, client_ip, domain, query_type, responded) VALUES (?, ?, ?, ?, ?)`,
-		q.Timestamp, q.ClientIP, q.Domain, q.Type, boolToInt(q.Responded),
+		`INSERT INTO queries (ts, client_ip, domain, query_type, responded, category)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		q.Timestamp, q.ClientIP, q.Domain, q.Type, boolToInt(q.Responded), q.Category,
 	)
 	return err
 }
 
 func (s *Store) RecentQueries(limit int) ([]Query, error) {
 	rows, err := s.db.Query(
-		`SELECT id, ts, client_ip, domain, query_type, responded
+		`SELECT id, ts, client_ip, domain, query_type, responded, category
 		 FROM queries
 		 ORDER BY id DESC
 		 LIMIT ?`,
@@ -70,7 +81,7 @@ func (s *Store) RecentQueries(limit int) ([]Query, error) {
 	for rows.Next() {
 		var q Query
 		var responded int
-		if err := rows.Scan(&q.ID, &q.Timestamp, &q.ClientIP, &q.Domain, &q.Type, &responded); err != nil {
+		if err := rows.Scan(&q.ID, &q.Timestamp, &q.ClientIP, &q.Domain, &q.Type, &responded, &q.Category); err != nil {
 			return nil, err
 		}
 		q.Responded = responded != 0
