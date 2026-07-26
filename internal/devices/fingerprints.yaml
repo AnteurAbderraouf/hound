@@ -1,0 +1,201 @@
+# DNS-based device-type fingerprints.
+# ---------------------------------------------------------------------------
+# Each entry declares a device type, a display label, a match confidence
+# (higher wins ties), and a list of "signature domains" that are queried
+# almost exclusively by that device family. When hound sees an IP query
+# any of those domains, it tags the device with the matching type.
+#
+# Matching is suffix-based: a signal of `push.apple.com` matches
+# `push.apple.com`, `p10-push.apple.com`, or any subdomain.
+#
+# Contributing new fingerprints:
+#   - prefer signals that are highly exclusive (an Apple-only endpoint,
+#     not just `apple.com` which every browser hits)
+#   - keep confidence values sane; 10 = "impossible to be anything else",
+#     1 = "weak hint"
+# ---------------------------------------------------------------------------
+
+signatures:
+
+  - type: "iphone"
+    label: "iPhone / iPad"
+    confidence: 10
+    signals:
+      - push.apple.com
+      - configuration.apple.com
+      - gsp10-ssl.ls.apple.com
+      - mask.icloud.com
+      - mesu.apple.com
+      - apps.mzstatic.com
+
+  - type: "mac"
+    label: "Mac"
+    confidence: 8
+    signals:
+      - swscan.apple.com
+      - swcdn.apple.com
+      - swdist.apple.com
+      - osrecovery.apple.com
+
+  - type: "android"
+    label: "Android"
+    confidence: 9
+    signals:
+      - 1e100.net
+      - mtalk.google.com
+      - android.clients.google.com
+      - android.googleapis.com
+      - dl.google.com
+
+  - type: "chromecast"
+    label: "Chromecast"
+    confidence: 10
+    signals:
+      - chromecast.com
+      - cast-connect.com
+      - clients3.google.com
+      - dial.google.com
+
+  - type: "google-home"
+    label: "Google Home / Nest speaker"
+    confidence: 10
+    signals:
+      - clients.google.com
+      - googlecast.com
+      - homegraph.googleapis.com
+
+  - type: "xbox"
+    label: "Xbox"
+    confidence: 10
+    signals:
+      - xboxlive.com
+      - xboxservices.com
+      - xbox.com
+
+  - type: "playstation"
+    label: "PlayStation"
+    confidence: 10
+    signals:
+      - playstation.net
+      - playstation.com
+      - sonyentertainmentnetwork.com
+
+  - type: "nintendo-switch"
+    label: "Nintendo Switch"
+    confidence: 10
+    signals:
+      - nintendo.net
+      - nintendowifi.net
+      - nintendogamecenter.jp
+      - accounts.nintendo.com
+
+  - type: "samsung-tv"
+    label: "Samsung Smart TV"
+    confidence: 10
+    signals:
+      - samsungcloudsolution.com
+      - samsungcloudsolution.net
+      - samsungosp.com
+      - samsungrs.com
+      - samsungqbe.com
+
+  - type: "lg-tv"
+    label: "LG Smart TV"
+    confidence: 10
+    signals:
+      - lgtvcommon.com
+      - lgtvsdp.com
+      - lgappstv.com
+
+  - type: "amazon-echo"
+    label: "Amazon Echo / Alexa"
+    confidence: 10
+    signals:
+      - avs-alexa.amazon.com
+      - avs-alexa-na.amazon.com
+      - alexa.amazon.com
+      - unagi-na.amazon.com
+
+  - type: "amazon-fire-tv"
+    label: "Amazon Fire TV"
+    confidence: 9
+    signals:
+      - device-metrics-us.amazon.com
+      - firetv.amazon.com
+
+  - type: "kindle"
+    label: "Kindle"
+    confidence: 9
+    signals:
+      - todo-ta-g7g.amazon.com
+      - firs-ta-g7g.amazon.com
+      - kindle-time.amazon.com
+
+  - type: "roku"
+    label: "Roku"
+    confidence: 10
+    signals:
+      - roku.com
+      - rokustreamingplayer.com
+
+  - type: "philips-hue"
+    label: "Philips Hue"
+    confidence: 10
+    signals:
+      - dcp.cpp.philips.com
+      - www2.meethue.com
+
+  - type: "nest"
+    label: "Nest thermostat / camera"
+    confidence: 10
+    signals:
+      - nestlabs.com
+      - nest.com
+      - dropcam.com
+
+  - type: "ring"
+    label: "Ring doorbell / camera"
+    confidence: 10
+    signals:
+      - ring.com
+      - a3l3ss7c9c9zx7.iot.us-east-1.amazonaws.com
+
+  - type: "sonos"
+    label: "Sonos speaker"
+    confidence: 10
+    signals:
+      - sonos.com
+      - ws.sonos.com
+
+  - type: "windows"
+    label: "Windows"
+    confidence: 8
+    signals:
+      - windowsupdate.com
+      - officecdn.microsoft.com
+      - vortex.data.microsoft.com
+      - settings-win.data.microsoft.com
+
+  - type: "linux-desktop"
+    label: "Linux desktop"
+    confidence: 5
+    signals:
+      - archive.ubuntu.com
+      - security.ubuntu.com
+      - security.debian.org
+      - packagecloud.io
+
+  - type: "printer"
+    label: "Network printer"
+    confidence: 6
+    signals:
+      - www3.hp.com
+      - h30467.www3.hp.com
+      - fpdownload.macromedia.com
+
+  - type: "tesla"
+    label: "Tesla"
+    confidence: 10
+    signals:
+      - tesla.com
+      - firmware.tesla.com

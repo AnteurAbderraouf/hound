@@ -18,17 +18,19 @@ import (
 	"github.com/AnteurAbderraouf/hound/internal/window"
 )
 
-const version = "0.0.8"
+const version = "0.0.9"
 
 // sinkAdapter bridges dns.Query into storage.Query so the two packages
 // don't depend on each other's types, and enriches each query with its
-// category before persisting. It also notifies the device tracker so
-// MAC/hostname enrichment can happen off the DNS hot path.
+// category before persisting. It also notifies the device tracker and
+// the DNS fingerprinter so MAC/vendor/type enrichment can happen off
+// the DNS hot path.
 type sinkAdapter struct {
-	store   *storage.Store
-	cat     *categorizer.Categorizer
-	tracker *devices.Tracker
-	log     *slog.Logger
+	store       *storage.Store
+	cat         *categorizer.Categorizer
+	tracker     *devices.Tracker
+	fingerprint *devices.Fingerprinter
+	log         *slog.Logger
 }
 
 func (a *sinkAdapter) Log(q dns.Query) {
@@ -43,9 +45,10 @@ func (a *sinkAdapter) Log(q dns.Query) {
 	if err := a.store.InsertQuery(sq); err != nil {
 		a.log.Error("failed to store query", "err", err)
 	}
-	// fire-and-forget: tracker maintains its own async worker, this
-	// call is O(1) and non-blocking.
+	// fire-and-forget: both are O(1) map lookups + optional non-blocking
+	// enqueue.
 	a.tracker.Observe(q.ClientIP, q.Time)
+	a.fingerprint.Observe(q.ClientIP, q.Domain)
 }
 
 func main() {
@@ -81,7 +84,26 @@ func main() {
 	tracker := devices.NewTracker(devices.NewResolver(), store, log)
 	tracker.Start(ctx)
 
-	sink := &sinkAdapter{store: store, cat: cat, tracker: tracker, log: log}
+	fingerprinter, err := devices.NewFingerprinter(func(ip, typ, label string) {
+		if err := store.SetDeviceType(ip, typ, time.Now()); err != nil {
+			log.Warn("set device type failed", "ip", ip, "type", typ, "err", err)
+			return
+		}
+		log.Info("device fingerprinted", "ip", ip, "type", typ, "label", label)
+	})
+	if err != nil {
+		log.Error("failed to load fingerprinter", "err", err)
+		os.Exit(1)
+	}
+	log.Info("fingerprinter loaded", "signatures", len(fingerprinter.Signatures()))
+
+	sink := &sinkAdapter{
+		store:       store,
+		cat:         cat,
+		tracker:     tracker,
+		fingerprint: fingerprinter,
+		log:         log,
+	}
 
 	dnsServer := dns.New(cfg.DNSAddr, cfg.Upstream, sink, log)
 	apiServer := &api.Server{

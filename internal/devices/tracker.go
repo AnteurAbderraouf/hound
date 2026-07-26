@@ -10,7 +10,7 @@ import (
 // Store abstracts the persistence needed by Tracker. Kept minimal so
 // hound's storage package can implement it without exposing internals.
 type Store interface {
-	UpsertDevice(ip, mac, hostname string, seenAt time.Time) error
+	UpsertDevice(ip, mac, vendor, hostname string, seenAt time.Time) error
 }
 
 // Tracker sees every DNS query source IP and, the first time it meets
@@ -22,12 +22,12 @@ type Tracker struct {
 	store    Store
 	log      *slog.Logger
 
-	mu         sync.Mutex
-	lastSeen   map[string]time.Time // ip -> last time we enriched
-	inFlight   map[string]struct{}  // ip -> currently enriching
-	cooldown   time.Duration        // how often we re-enrich a known ip
-	workCh     chan string
-	done       chan struct{}
+	mu       sync.Mutex
+	lastSeen map[string]time.Time // ip -> last time we enriched
+	inFlight map[string]struct{}  // ip -> currently enriching
+	cooldown time.Duration        // how often we re-enrich a known ip
+	workCh   chan string
+	done     chan struct{}
 }
 
 // NewTracker returns a Tracker ready to Start. The cooldown controls
@@ -107,9 +107,10 @@ func (t *Tracker) enrich(ctx context.Context, ip string) {
 	}()
 
 	mac, hostname := t.resolver.Enrich(ctx, ip)
-	if err := t.store.UpsertDevice(ip, mac, hostname, time.Now()); err != nil {
+	vendor := LookupVendor(mac)
+	if err := t.store.UpsertDevice(ip, mac, vendor, hostname, time.Now()); err != nil {
 		t.log.Warn("device upsert failed", "ip", ip, "err", err)
 		return
 	}
-	t.log.Debug("device enriched", "ip", ip, "mac", mac, "hostname", hostname)
+	t.log.Debug("device enriched", "ip", ip, "mac", mac, "vendor", vendor, "hostname", hostname)
 }

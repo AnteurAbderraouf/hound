@@ -90,6 +90,12 @@ func displayName(d storage.Device) string {
 		return d.CustomName
 	case d.Hostname != "":
 		return d.Hostname
+	case d.Vendor != "" && d.DeviceType != "":
+		return d.Vendor + " " + d.DeviceType
+	case d.DeviceType != "":
+		return d.DeviceType
+	case d.Vendor != "":
+		return d.Vendor + " device"
 	case d.MAC != "":
 		return d.MAC
 	default:

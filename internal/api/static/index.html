@@ -212,6 +212,7 @@ header .status {
 }
 
 .devices .ip { color: var(--cyan); }
+.devices .ident { color: var(--amber); font-size: 12px; }
 .devices .mac { color: var(--dim); font-size: 11px; }
 .devices .host { color: var(--amber); font-size: 11px; }
 .devices .seen { color: var(--dim); font-size: 11px; }
@@ -272,7 +273,7 @@ footer a:hover {
 <div class="frame" data-label="system" role="banner">
   <header>
     <div class="title">> hound<span class="cursor"></span></div>
-    <div class="subtitle">retro-terminal dns monitor · v0.0.8</div>
+    <div class="subtitle">retro-terminal dns monitor · v0.0.9</div>
     <div class="status">status: <span id="status">initializing...</span></div>
   </header>
 </div>
@@ -339,18 +340,22 @@ async function refreshDevices() {
       container.innerHTML = '<div class="empty">no devices seen yet</div>';
       return;
     }
-    const rows = data.map(d => `
+    const rows = data.map(d => {
+      const identity = [d.vendor, d.device_type].filter(Boolean).join(' · ') || '—';
+      return `
       <tr data-ip="${escapeHtml(d.ip)}">
         <td class="name" data-role="name">${escapeHtml(d.display_name)}</td>
         <td class="ip">${escapeHtml(d.ip)}</td>
+        <td class="ident">${escapeHtml(identity)}</td>
         <td class="mac">${escapeHtml(d.mac || '—')}</td>
         <td class="host">${escapeHtml(d.hostname || '—')}</td>
         <td class="seen" title="${escapeHtml(d.last_seen)}">${relativeTime(d.last_seen)}</td>
         <td><button class="rename" data-ip="${escapeHtml(d.ip)}" data-current="${escapeHtml(d.custom_name || '')}">rename</button></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
     container.innerHTML = `<table class="devices">
       <thead>
-        <tr><th>name</th><th>ip</th><th>mac</th><th>hostname</th><th>last seen</th><th></th></tr>
+        <tr><th>name</th><th>ip</th><th>identity</th><th>mac</th><th>hostname</th><th>last seen</th><th></th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
