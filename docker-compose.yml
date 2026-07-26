@@ -1,0 +1,17 @@
+services:
+  hound:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: hound:latest
+    container_name: hound
+    restart: unless-stopped
+    # host network so hound sees real client IPs, not the docker bridge
+    network_mode: host
+    volumes:
+      - ./data:/data
+    environment:
+      - HOUND_DB_PATH=/data/hound.db
+      - HOUND_DNS_ADDR=:53
+      - HOUND_HTTP_ADDR=:8080
+      - HOUND_UPSTREAM=1.1.1.1:53,8.8.8.8:53
