@@ -11,7 +11,7 @@
 
 **Peek at what's happening on your family's WiFi.**
 
-A retro-terminal DNS monitor for home networks — no hardware, no fuss, just clarity.
+A retro-terminal DNS monitor for home networks.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Status](https://img.shields.io/badge/status-early--dev-orange)
