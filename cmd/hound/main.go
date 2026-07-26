@@ -17,7 +17,7 @@ import (
 	"github.com/AnteurAbderraouf/hound/internal/window"
 )
 
-const version = "0.0.6"
+const version = "0.0.7"
 
 // sinkAdapter bridges dns.Query into storage.Query so the two packages
 // don't depend on each other's types, and enriches each query with its
