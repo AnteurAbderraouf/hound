@@ -46,6 +46,10 @@ Thumbs.db
 .env.local
 *.local
 
+# Local commit-message scratch files
+.git-commit-msg.*
+*.tmp
+
 # Logs
 *.log
 logs/
