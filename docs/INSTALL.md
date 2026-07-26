@@ -13,16 +13,27 @@ that best matches how you already run stuff at home.
 
 ## 1. Docker
 
-The `docker-compose.yml` shipped in the repo is the fastest path. It uses
-`network_mode: host` so hound can see the real client IPs on your LAN
-(without host mode, every query would appear to come from the Docker
-bridge).
+The published multi-arch image (`amd64` + `arm64`) lives on GHCR:
+
+```bash
+docker run -d \
+  --name hound \
+  --network host \
+  -v hound-data:/data \
+  ghcr.io/anteurabderraouf/hound:latest
+```
+
+Or, if you prefer the checked-in `docker-compose.yml`:
 
 ```bash
 git clone https://github.com/AnteurAbderraouf/hound.git
 cd hound
 docker compose up -d
 ```
+
+Both use `network_mode: host` so hound can see the real client IPs on
+your LAN. Without host mode, every query would appear to come from the
+Docker bridge, breaking per-device tracking.
 
 That's it. hound is now listening on:
 
@@ -45,14 +56,15 @@ The SQLite database persists in `./data/hound.db` on the host.
 
 ## 2. Native binary
 
-_Pre-built binaries land at v0.1.0. For now, use option 3 (build from
-source)._
+Pre-built binaries for every release live on the
+[releases page](https://github.com/AnteurAbderraouf/hound/releases).
+Each archive contains `hound` (the server) and `hound-query` (the demo
+tool) plus this documentation.
 
 ### Windows
 
-Once binaries ship, download `hound-windows-amd64.exe`, drop it in
-`C:\Program Files\hound\`, and double-click. A chromeless Edge/Chrome
-window opens with the UI.
+Download `hound_<version>_windows_amd64.zip`, unzip, and double-click
+`hound.exe`. A chromeless Edge/Chrome window opens with the UI.
 
 Because DNS port 53 is a privileged port on Windows, you have two
 choices:
@@ -67,13 +79,15 @@ choices:
 
 ### macOS
 
-`hound-darwin-arm64` (Apple Silicon) or `hound-darwin-amd64` (Intel).
-Same story: `sudo ./hound` to bind :53, or use a high port for testing.
+Grab `hound_<version>_darwin_arm64.tar.gz` (Apple Silicon) or
+`_darwin_amd64.tar.gz` (Intel). Same story: `sudo ./hound` to bind
+:53, or use a high port for testing.
 
 ### Linux
 
-`hound-linux-amd64` or `hound-linux-arm64`. Recommended: install as a
-systemd service. A sample unit file will ship at v0.1.0.
+`hound_<version>_linux_amd64.tar.gz` or `_linux_arm64.tar.gz`. Extract
+and run. For a systemd service, see the sample unit in the
+[releases discussion](https://github.com/AnteurAbderraouf/hound/discussions).
 
 ---
 

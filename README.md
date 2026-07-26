@@ -21,7 +21,7 @@ A retro-terminal DNS monitor for home networks.
 
 ---
 
-> ⚠️ **Early development.** Core is working (DNS server, categorization, UI window, SQLite storage) but there's no packaged release yet — build from source for now. Star & watch for the v0.1 release with pre-built binaries.
+> 🎉 **v0.1.0 released!** Pre-built binaries and a multi-arch Docker image are on the [releases page](https://github.com/AnteurAbderraouf/hound/releases) and [ghcr.io](https://github.com/AnteurAbderraouf/hound/pkgs/container/hound). The core (DNS server, per-device tracking, OUI + DNS fingerprinting, categorization, retro-terminal UI window) is working.
 
 ## What is this?
 
@@ -64,6 +64,16 @@ A retro-terminal DNS monitor for home networks.
 **Docker** (easiest on Linux / NAS / homelab):
 
 ```bash
+docker run -d \
+  --name hound \
+  --network host \
+  -v hound-data:/data \
+  ghcr.io/anteurabderraouf/hound:latest
+```
+
+Or with the checked-in compose file:
+
+```bash
 git clone https://github.com/AnteurAbderraouf/hound.git
 cd hound
 docker compose up -d
@@ -73,13 +83,24 @@ Then point your router's **primary DNS** at your host (secondary DNS →
 `1.1.1.1` as fallback). See [ROUTER-SETUP.md](docs/ROUTER-SETUP.md) for
 the exact clicks per ISP box.
 
-**From source** (Windows / macOS / dev):
+**Pre-built binary** (Windows / macOS / Linux desktop):
+
+Grab the archive for your OS from the
+[releases page](https://github.com/AnteurAbderraouf/hound/releases),
+unzip, and run:
+
+```bash
+./hound             # linux/mac, sudo to bind :53
+hound.exe           # windows, run as Administrator to bind :53
+```
+
+**From source** (dev):
 
 ```bash
 git clone https://github.com/AnteurAbderraouf/hound.git
 cd hound
 go build -o bin/hound ./cmd/hound
-./bin/hound        # sudo on linux/mac to bind :53
+./bin/hound
 ```
 
 A retro-terminal UI window pops open automatically (no browser needed).

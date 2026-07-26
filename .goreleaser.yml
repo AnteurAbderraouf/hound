@@ -1,0 +1,149 @@
+# goreleaser v2 config for hound.
+# ---------------------------------------------------------------------------
+# Triggered from .github/workflows/release.yml on any pushed tag `v*`.
+# Produces:
+#   - hound + hound-query binaries for linux/darwin/windows × amd64/arm64
+#   - .tar.gz archives (.zip on Windows) with LICENSE, README, VERSION
+#   - checksums.txt + SBOM per artifact
+#   - multi-arch Docker image on ghcr.io/anteurabderraouf/hound (amd64+arm64)
+#   - a GitHub Release with generated changelog
+# ---------------------------------------------------------------------------
+
+version: 2
+
+project_name: hound
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: hound
+    main: ./cmd/hound
+    binary: hound
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+
+  - id: hound-query
+    main: ./cmd/hound-query
+    binary: hound-query
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: default
+    ids: [hound, hound-query]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - VERSION
+      - docs/**/*
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^feat(\(.+\))?:'
+      order: 0
+    - title: Fixes
+      regexp: '^fix(\(.+\))?:'
+      order: 1
+    - title: Documentation
+      regexp: '^docs(\(.+\))?:'
+      order: 2
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - '^chore:'
+      - '^ci:'
+      - '^test:'
+
+release:
+  github:
+    owner: AnteurAbderraouf
+    name: hound
+  draft: false
+  prerelease: auto
+  header: |
+    # hound {{ .Tag }}
+
+    A retro-terminal DNS monitor for home networks.
+
+    See [INSTALL.md](https://github.com/AnteurAbderraouf/hound/blob/main/docs/INSTALL.md)
+    for setup, and [ROUTER-SETUP.md](https://github.com/AnteurAbderraouf/hound/blob/main/docs/ROUTER-SETUP.md)
+    for per-ISP router configuration.
+
+    **Docker:** `docker pull ghcr.io/anteurabderraouf/hound:{{ .Version }}`
+
+# ---------------------------------------------------------------------------
+# Docker images (built by GoReleaser using the pre-built linux binaries)
+# ---------------------------------------------------------------------------
+
+dockers:
+  - id: amd64
+    goos: linux
+    goarch: amd64
+    ids: [hound]
+    image_templates:
+      - "ghcr.io/anteurabderraouf/hound:{{ .Version }}-amd64"
+    dockerfile: docker/Dockerfile.release
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.source=https://github.com/AnteurAbderraouf/hound"
+      - "--label=org.opencontainers.image.description=A retro-terminal DNS monitor for home networks"
+      - "--label=org.opencontainers.image.licenses=MIT"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+
+  - id: arm64
+    goos: linux
+    goarch: arm64
+    ids: [hound]
+    image_templates:
+      - "ghcr.io/anteurabderraouf/hound:{{ .Version }}-arm64"
+    dockerfile: docker/Dockerfile.release
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.source=https://github.com/AnteurAbderraouf/hound"
+      - "--label=org.opencontainers.image.description=A retro-terminal DNS monitor for home networks"
+      - "--label=org.opencontainers.image.licenses=MIT"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+
+docker_manifests:
+  - name_template: "ghcr.io/anteurabderraouf/hound:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/anteurabderraouf/hound:{{ .Version }}-amd64"
+      - "ghcr.io/anteurabderraouf/hound:{{ .Version }}-arm64"
+
+  - name_template: "ghcr.io/anteurabderraouf/hound:latest"
+    image_templates:
+      - "ghcr.io/anteurabderraouf/hound:{{ .Version }}-amd64"
+      - "ghcr.io/anteurabderraouf/hound:{{ .Version }}-arm64"

@@ -1,0 +1,25 @@
+# Minimal release image. Used by goreleaser (see .goreleaser.yml) which
+# has already cross-compiled the hound binary for the target arch. We
+# just wrap it in a small alpine so we get ca-certificates and tzdata
+# for upstream DNS TLS + timestamp handling.
+#
+# For a from-source build (dev, no goreleaser), use docker/Dockerfile.
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata
+
+# goreleaser drops the binary in the build context at ./hound
+COPY hound /usr/local/bin/hound
+
+EXPOSE 53/udp
+EXPOSE 53/tcp
+EXPOSE 8080/tcp
+
+VOLUME ["/data"]
+
+# HOUND_HEADLESS=1 tells hound not to try opening a UI window (there's
+# no display in a container).
+ENV HOUND_HEADLESS=1 \
+    HOUND_DB_PATH=/data/hound.db
+
+ENTRYPOINT ["/usr/local/bin/hound"]

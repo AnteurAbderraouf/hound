@@ -18,7 +18,9 @@ import (
 	"github.com/AnteurAbderraouf/hound/internal/window"
 )
 
-const version = "0.0.9"
+// version is overridden at release time by goreleaser via ldflags.
+// See .goreleaser.yml -> builds.ldflags.
+var version = "0.1.0"
 
 // sinkAdapter bridges dns.Query into storage.Query so the two packages
 // don't depend on each other's types, and enriches each query with its
