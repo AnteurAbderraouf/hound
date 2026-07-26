@@ -3,7 +3,7 @@ package storage
 import (
 	"database/sql"
 	_ "embed"
-	"strings"
+	"fmt"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -38,17 +38,49 @@ func Open(path string) (*Store, error) {
 	}
 	if _, err := db.Exec(schemaSQL); err != nil {
 		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("apply base schema: %w", err)
 	}
-	// migrate: if an older db exists without the category column, add it.
-	// harmless no-op when the column already exists thanks to the error check.
-	if _, err := db.Exec(`ALTER TABLE queries ADD COLUMN category TEXT NOT NULL DEFAULT 'other'`); err != nil {
-		if !strings.Contains(err.Error(), "duplicate column") {
-			db.Close()
-			return nil, err
+	s := &Store{db: db}
+	if err := s.migrate(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+	return s, nil
+}
+
+// migrate reconciles the on-disk schema with the current version. Each
+// step is idempotent so re-running is safe on fresh databases too.
+//
+// Adding a new column: check pragma_table_info first, then ALTER TABLE.
+// Adding an index on a possibly-new column: use CREATE INDEX IF NOT EXISTS
+// but only AFTER ensuring the column exists.
+func (s *Store) migrate() error {
+	// v0.0.4: added queries.category
+	if ok, err := s.columnExists("queries", "category"); err != nil {
+		return err
+	} else if !ok {
+		if _, err := s.db.Exec(`ALTER TABLE queries ADD COLUMN category TEXT NOT NULL DEFAULT 'other'`); err != nil {
+			return fmt.Errorf("add queries.category: %w", err)
 		}
 	}
-	return &Store{db: db}, nil
+	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_queries_category ON queries(category)`); err != nil {
+		return fmt.Errorf("create idx_queries_category: %w", err)
+	}
+	return nil
+}
+
+// columnExists reports whether a column exists on a table (uses SQLite's
+// pragma_table_info virtual table).
+func (s *Store) columnExists(table, column string) (bool, error) {
+	var count int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`,
+		table, column,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (s *Store) Close() error {
