@@ -61,7 +61,31 @@ A retro-terminal DNS monitor for home networks.
 
 ## Quick start
 
-**Docker** (easiest on Linux / NAS / homelab):
+**One-liner install (Windows)** — PowerShell as **Administrator**:
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/install.ps1 | iex
+```
+
+Downloads the latest release, installs to Program Files, opens Windows
+Firewall, registers a scheduled task that starts hound at boot as
+SYSTEM, and self-tests. **You just need to point your router's primary
+DNS at the printed IP.**
+
+Preview without touching anything:
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/install.ps1 -OutFile install.ps1
+.\install.ps1 -DryRun
+```
+
+**One-liner install (Linux with systemd)**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/install.sh | sudo bash
+```
+
+**Docker** (any OS with Docker; best for NAS / homelab):
 
 ```bash
 docker run -d \
@@ -83,7 +107,7 @@ Then point your router's **primary DNS** at your host (secondary DNS →
 `1.1.1.1` as fallback). See [ROUTER-SETUP.md](docs/ROUTER-SETUP.md) for
 the exact clicks per ISP box.
 
-**Pre-built binary** (Windows / macOS / Linux desktop):
+**Manual install from pre-built binary** (Windows / macOS / Linux desktop):
 
 Grab the archive for your OS from the
 [releases page](https://github.com/AnteurAbderraouf/hound/releases),

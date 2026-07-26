@@ -1,13 +1,81 @@
 # Installation
 
-hound ships as a single binary and as a Docker image. Pick the option
-that best matches how you already run stuff at home.
+hound ships as a one-line installer, as a single binary, and as a
+Docker image. Pick the option that best matches how you already run
+stuff at home.
 
-- [1. Docker (recommended for NAS, home servers, Linux boxes)](#1-docker)
-- [2. Native binary (Windows / macOS / Linux desktop)](#2-native-binary)
+- [0. One-line installer (Windows / Linux)](#0-one-line-installer)
+- [1. Docker (any OS; best for NAS / homelab)](#1-docker)
+- [2. Native binary (manual)](#2-native-binary)
 - [3. Build from source](#3-build-from-source)
 - [Configuration reference (env vars)](#configuration-reference)
 - [Verifying it works](#verifying-it-works)
+
+---
+
+## 0. One-line installer
+
+The fastest path. Handles LAN IP detection, port-53 availability
+check, firewall rules, service registration, and a self-test. Router
+configuration is the only remaining manual step (impossible to
+automate cross-brand).
+
+### Windows (PowerShell as Administrator)
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/install.ps1 | iex
+```
+
+What it does:
+- Downloads the latest hound release, extracts to `C:\Program Files\hound\`
+- Creates a data folder at `C:\ProgramData\hound\` (the SQLite db lives there)
+- Opens Windows Firewall for UDP+TCP :53 and TCP :8080
+- Registers a Scheduled Task `hound` that runs as `SYSTEM` at boot
+- Starts the task and runs a DNS self-test
+- Prints your LAN IP + links to per-brand router setup docs
+
+Preview without changes (safe):
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/install.ps1 -OutFile install.ps1
+.\install.ps1 -DryRun
+```
+
+Uninstall:
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/uninstall.ps1 | iex
+```
+
+### Linux (systemd distros)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/install.sh | sudo bash
+```
+
+What it does:
+- Downloads the arch-appropriate hound binary to `/usr/local/bin/hound`
+- Creates system user `hound` and data folder `/var/lib/hound/`
+- Writes `/etc/systemd/system/hound.service` with `CAP_NET_BIND_SERVICE`
+  so hound can bind :53 without running as root
+- Opens ufw / firewalld ports if either is present
+- Enables and starts the service, runs a `dig` self-test
+- Prints your LAN IP + router setup pointers
+
+Preview:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/install.sh -o install.sh
+sudo bash install.sh --dry-run
+```
+
+Uninstall:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AnteurAbderraouf/hound/main/scripts/uninstall.sh | sudo bash
+```
+
+---
 
 ---
 
