@@ -305,36 +305,76 @@ if ($DryRun) {
 
 Write-Step "next steps -- LAST manual bit (router)"
 
-@"
+# --- resolve the PC MAC for the DHCP reservation form -----------------------
 
-hound is installed and running as a background task.
+$macAddress = "<unknown -- check via: Get-NetAdapter>"
+try {
+    $netEntry = Get-NetIPAddress -IPAddress $lanIP -AddressFamily IPv4 -ErrorAction Stop
+    $adapter  = Get-NetAdapter -InterfaceIndex $netEntry.InterfaceIndex -ErrorAction Stop
+    if ($adapter.MacAddress) {
+        # convert Windows dash format AA-BB-CC-DD-EE-FF to colon format
+        $macAddress = ($adapter.MacAddress -replace '-', ':').ToLower()
+    }
+} catch {
+    Write-Warn2 "could not resolve MAC for $lanIP -- run `Get-NetAdapter` manually to find it"
+}
 
-  UI                : http://localhost:8080
-  data folder       : $DataDir
-  binary            : $targetExe
-  scheduled task    : 'hound' (runs at boot as SYSTEM)
+# --- suggest a reservation IP inside the subnet -----------------------------
+# .50 is a commonly-free slot in typical home DHCP pools (2..254). If the
+# router refuses ("IP already in use"), the user can pick .60, .70, .100...
+$subnet       = ($lanIP -split '\.')[0..2] -join '.'
+$suggestedIP  = "$subnet.50"
 
-To make the whole LAN send its DNS queries to hound, log into your
-router's admin interface and set:
+# ---------------------------------------------------------------------------
 
-  PRIMARY DNS    : $lanIP
-  SECONDARY DNS  : 1.1.1.1
-
-Detailed router-by-router walkthroughs (Freebox, Livebox, Bbox, SFR,
-TP-Link, Netgear, ASUS, generic):
-
-  https://github.com/AnteurAbderraouf/hound/blob/main/docs/ROUTER-SETUP.md
-
-Test on ONE device first (your phone: WiFi -> DNS -> manual -> $lanIP)
-before touching the router. If queries show up in the UI, roll it out
-to the router.
-
-To stop or uninstall hound later:
-
-  Stop-ScheduledTask -TaskName hound
-  # or a full clean removal:
-  .\uninstall.ps1
-
-"@ | Write-Host -ForegroundColor White
+Write-Host ""
+Write-Host "  hound is installed and running as a background task." -ForegroundColor White
+Write-Host ""
+Write-Host "    UI              : http://localhost:8080"
+Write-Host "    data folder     : $DataDir"
+Write-Host "    binary          : $targetExe"
+Write-Host "    scheduled task  : 'hound' (runs at boot as SYSTEM)"
+Write-Host ""
+Write-Host "  Router configuration -- 2 steps in your router's admin panel:" -ForegroundColor White
+Write-Host ""
+Write-Host "  ---- Step 1: DHCP static IP reservation ----" -ForegroundColor Cyan
+Write-Host "    Find the 'DHCP Static IP' / 'DHCP Reservation' section and add:"
+Write-Host ""
+Write-Host "      MAC address     : $macAddress" -ForegroundColor Yellow
+Write-Host "      Reserved IP     : $suggestedIP" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "    Why: your PC's IP must never change, otherwise the LAN's DNS"
+Write-Host "    setting (Step 2) will point to a dead address after any reboot."
+Write-Host ""
+Write-Host "    If the router refuses with 'IP already in use', pick another"
+Write-Host "    IP in the DHCP range (.60, .70, .100, ...) and use THAT in Step 2."
+Write-Host ""
+Write-Host "    After adding the reservation, force this PC to pick it up:"
+Write-Host "      ipconfig /release"
+Write-Host "      ipconfig /renew"
+Write-Host ""
+Write-Host "  ---- Step 2: DHCP DNS servers ----" -ForegroundColor Cyan
+Write-Host "    In the same DHCP section, set the DNS handed out to devices:"
+Write-Host ""
+Write-Host "      PRIMARY DNS     : $suggestedIP   (your PC running hound)" -ForegroundColor Yellow
+Write-Host "      SECONDARY DNS   : 1.1.1.1        (Cloudflare fallback)" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "    Fallback matters: when your PC is off, the LAN falls back to"
+Write-Host "    Cloudflare so no one loses internet. You just miss tracking"
+Write-Host "    during that window."
+Write-Host ""
+Write-Host "  Per-brand walkthroughs (Freebox / Livebox / Bbox / SFR / TP-Link /" -ForegroundColor White
+Write-Host "  Netgear / ASUS / FiberHome / generic):"
+Write-Host "    https://github.com/AnteurAbderraouf/hound/blob/main/docs/ROUTER-SETUP.md"
+Write-Host ""
+Write-Host "  Recommended smoke test before touching the router: point ONE" -ForegroundColor White
+Write-Host "  device (your phone) at the reserved IP manually:"
+Write-Host "    Phone -> WiFi -> DNS -> Manual -> $suggestedIP + 1.1.1.1"
+Write-Host "  If queries appear in the UI, roll it out to the router via Step 2."
+Write-Host ""
+Write-Host "  To stop or uninstall later:" -ForegroundColor White
+Write-Host "    Stop-ScheduledTask -TaskName hound"
+Write-Host "    .\uninstall.ps1                # full clean removal"
+Write-Host ""
 
 Write-Host "==> done." -ForegroundColor Green
