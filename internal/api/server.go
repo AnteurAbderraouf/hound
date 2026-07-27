@@ -55,8 +55,10 @@ func (s *Server) handleQueries(w http.ResponseWriter, r *http.Request) {
 			limit = n
 		}
 	}
+	category := r.URL.Query().Get("category")
+	clientIP := r.URL.Query().Get("client_ip")
 
-	queries, err := s.Store.RecentQueries(limit)
+	queries, err := s.Store.RecentQueries(limit, category, clientIP)
 	if err != nil {
 		s.Log.Error("failed to fetch queries", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)

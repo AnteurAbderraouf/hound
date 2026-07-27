@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>hound — dns monitor</title>
+<title>hound -- dns monitor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -100,29 +100,136 @@ header .status {
   50%, 100% { opacity: 0; }
 }
 
+/* legend / category chips */
+
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
   font-size: 11px;
-  color: var(--dim);
 }
 
-.legend .chip {
+.chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: 3px 10px;
   border: 1px solid currentColor;
   border-radius: 2px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 80ms, color 80ms;
 }
 
-.legend .chip .dot {
+.chip:hover {
+  background: rgba(0, 255, 65, 0.08);
+}
+
+.chip .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: currentColor;
 }
+
+/* active chip: inverted -- chip color becomes background, text becomes bg color */
+.chip.active {
+  background: currentColor;
+}
+
+.chip.active > * {
+  color: var(--bg);
+}
+
+.chip.active .dot {
+  background: var(--bg);
+}
+
+.chip.clear {
+  color: var(--dim);
+  font-style: italic;
+}
+
+/* devices table */
+
+.devices {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.devices th {
+  text-align: left;
+  color: var(--dim);
+  font-weight: 500;
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px dashed rgba(0, 122, 31, 0.4);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.devices td {
+  padding: 6px 12px 6px 0;
+  border-bottom: 1px dashed rgba(0, 122, 31, 0.15);
+  color: var(--fg);
+  vertical-align: middle;
+}
+
+.devices tr {
+  cursor: pointer;
+}
+
+.devices tr:hover td {
+  background: rgba(0, 255, 65, 0.06);
+}
+
+.devices tr.active-filter td {
+  background: rgba(0, 217, 255, 0.12);
+  border-color: var(--cyan);
+}
+
+.devices tr:last-child td { border-bottom: none; }
+
+.devices .name {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.devices .ip { color: var(--cyan); }
+.devices .ident { color: var(--amber); font-size: 12px; }
+.devices .mac { color: var(--dim); font-size: 11px; }
+.devices .host { color: var(--amber); font-size: 11px; }
+.devices .seen { color: var(--dim); font-size: 11px; }
+
+.devices button.rename {
+  background: transparent;
+  border: 1px solid var(--dim);
+  color: var(--dim);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.devices button.rename:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.devices input.rename-input {
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 2px 6px;
+  outline: none;
+  width: 100%;
+}
+
+/* live query rows */
 
 .query {
   padding: 3px 0;
@@ -178,77 +285,33 @@ header .status {
   font-size: 11px;
 }
 
-/* devices table */
-
-.devices {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.devices th {
-  text-align: left;
-  color: var(--dim);
-  font-weight: 500;
-  padding: 6px 12px 6px 0;
-  border-bottom: 1px dashed rgba(0, 122, 31, 0.4);
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 1px;
-}
-
-.devices td {
-  padding: 6px 12px 6px 0;
-  border-bottom: 1px dashed rgba(0, 122, 31, 0.15);
-  color: var(--fg);
-  vertical-align: middle;
-}
-
-.devices tr:last-child td { border-bottom: none; }
-
-.devices .name {
-  color: var(--fg);
-  font-weight: 500;
-}
-
-.devices .ip { color: var(--cyan); }
-.devices .ident { color: var(--amber); font-size: 12px; }
-.devices .mac { color: var(--dim); font-size: 11px; }
-.devices .host { color: var(--amber); font-size: 11px; }
-.devices .seen { color: var(--dim); font-size: 11px; }
-
-.devices button.rename {
-  background: transparent;
-  border: 1px solid var(--dim);
-  color: var(--dim);
-  padding: 2px 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.devices button.rename:hover {
-  color: var(--fg);
-  border-color: var(--fg);
-}
-
-.devices input.rename-input {
-  background: var(--bg);
-  border: 1px solid var(--fg);
-  color: var(--fg);
-  font-family: inherit;
-  font-size: 13px;
-  padding: 2px 6px;
-  outline: none;
-  width: 100%;
-}
-
 .empty {
   padding: 20px;
   text-align: center;
   color: var(--dim);
   font-size: 13px;
+}
+
+/* active filter banner shown inside the live frame */
+.filter-banner {
+  color: var(--cyan);
+  font-size: 11px;
+  padding: 4px 0 8px 0;
+  border-bottom: 1px dashed rgba(0, 217, 255, 0.3);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.filter-banner .clear-btn {
+  cursor: pointer;
+  color: var(--dim);
+  text-decoration: underline;
+  margin-left: 8px;
+}
+
+.filter-banner .clear-btn:hover {
+  color: var(--fg);
 }
 
 footer {
@@ -273,22 +336,23 @@ footer a:hover {
 <div class="frame" data-label="system" role="banner">
   <header>
     <div class="title">> hound<span class="cursor"></span></div>
-    <div class="subtitle">retro-terminal dns monitor · v0.2.0</div>
+    <div class="subtitle">retro-terminal dns monitor · v0.3.0</div>
     <div class="status">status: <span id="status">initializing...</span></div>
   </header>
 </div>
 
-<div class="frame" data-label="categories">
+<div class="frame" data-label="categories · click to filter">
   <div class="legend" id="legend"></div>
 </div>
 
-<div class="frame" data-label="devices">
+<div class="frame" data-label="devices · click a row to filter">
   <div id="devices">
     <div class="empty">no devices seen yet</div>
   </div>
 </div>
 
 <div class="frame" data-label="live · recent dns queries">
+  <div id="filter-banner"></div>
   <div id="queries">
     <div class="empty">waiting for traffic...</div>
   </div>
@@ -299,27 +363,17 @@ footer a:hover {
 </footer>
 
 <script>
+/* -------------- state --------------------------------------------- */
+let CATEGORIES = {};           // name -> hex color
+let DEVICES = {};              // ip -> display_name (for banner)
+let ACTIVE_CATEGORY = null;    // filter: category name or null
+let ACTIVE_DEVICE_IP = null;   // filter: client_ip or null
+
+/* -------------- helpers ------------------------------------------- */
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[c]);
-}
-
-let CATEGORIES = {};
-
-async function loadCategories() {
-  try {
-    const res = await fetch('/api/categories');
-    CATEGORIES = await res.json();
-    const legend = document.getElementById('legend');
-    legend.innerHTML = Object.entries(CATEGORIES)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, color]) =>
-        `<span class="chip" style="color: ${escapeHtml(color)}"><span class="dot"></span>${escapeHtml(name)}</span>`
-      ).join('');
-  } catch (err) {
-    console.error('failed to load categories', err);
-  }
 }
 
 function relativeTime(iso) {
@@ -331,24 +385,99 @@ function relativeTime(iso) {
   return Math.round(seconds / 86400) + 'd ago';
 }
 
+/* -------------- filter controls ----------------------------------- */
+function setCategoryFilter(name) {
+  ACTIVE_CATEGORY = (ACTIVE_CATEGORY === name) ? null : name;
+  renderLegend();
+  renderFilterBanner();
+  refreshQueries();
+}
+
+function setDeviceFilter(ip) {
+  ACTIVE_DEVICE_IP = (ACTIVE_DEVICE_IP === ip) ? null : ip;
+  // re-render devices to update the highlight class
+  refreshDevices();
+  renderFilterBanner();
+  refreshQueries();
+}
+
+function clearAllFilters() {
+  ACTIVE_CATEGORY = null;
+  ACTIVE_DEVICE_IP = null;
+  renderLegend();
+  refreshDevices();
+  renderFilterBanner();
+  refreshQueries();
+}
+
+function renderFilterBanner() {
+  const el = document.getElementById('filter-banner');
+  const parts = [];
+  if (ACTIVE_CATEGORY) parts.push(`category = <b style="color: ${CATEGORIES[ACTIVE_CATEGORY] || 'var(--fg)'}">${escapeHtml(ACTIVE_CATEGORY)}</b>`);
+  if (ACTIVE_DEVICE_IP) {
+    const label = DEVICES[ACTIVE_DEVICE_IP] || ACTIVE_DEVICE_IP;
+    parts.push(`device = <b style="color: var(--cyan)">${escapeHtml(label)}</b>`);
+  }
+  if (parts.length === 0) {
+    el.innerHTML = '';
+    el.className = '';
+    return;
+  }
+  el.className = 'filter-banner';
+  el.innerHTML = '> filter: ' + parts.join(' · ') +
+    ' <span class="clear-btn" onclick="clearAllFilters()">[clear]</span>';
+}
+
+/* -------------- categories --------------------------------------- */
+function renderLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = Object.entries(CATEGORIES)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, color]) => {
+      const active = (ACTIVE_CATEGORY === name) ? 'active' : '';
+      const safeName = escapeHtml(name);
+      const safeColor = escapeHtml(color);
+      return `<span class="chip ${active}" style="color: ${safeColor}" data-cat="${safeName}"><span class="dot"></span>${safeName}</span>`;
+    }).join('');
+  legend.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => setCategoryFilter(chip.dataset.cat));
+  });
+}
+
+async function loadCategories() {
+  try {
+    const res = await fetch('/api/categories');
+    CATEGORIES = await res.json();
+    renderLegend();
+  } catch (err) {
+    console.error('failed to load categories', err);
+  }
+}
+
+/* -------------- devices ------------------------------------------ */
 async function refreshDevices() {
   const container = document.getElementById('devices');
   try {
     const res = await fetch('/api/devices');
     const data = await res.json();
+    // update lookup map for the filter banner
+    DEVICES = {};
+    for (const d of data || []) DEVICES[d.ip] = d.display_name;
+
     if (!data || data.length === 0) {
       container.innerHTML = '<div class="empty">no devices seen yet</div>';
       return;
     }
     const rows = data.map(d => {
-      const identity = [d.vendor, d.device_type].filter(Boolean).join(' · ') || '—';
+      const identity = [d.vendor, d.device_type].filter(Boolean).join(' · ') || '--';
+      const activeClass = (ACTIVE_DEVICE_IP === d.ip) ? 'active-filter' : '';
       return `
-      <tr data-ip="${escapeHtml(d.ip)}">
+      <tr data-ip="${escapeHtml(d.ip)}" class="${activeClass}">
         <td class="name" data-role="name">${escapeHtml(d.display_name)}</td>
         <td class="ip">${escapeHtml(d.ip)}</td>
         <td class="ident">${escapeHtml(identity)}</td>
-        <td class="mac">${escapeHtml(d.mac || '—')}</td>
-        <td class="host">${escapeHtml(d.hostname || '—')}</td>
+        <td class="mac">${escapeHtml(d.mac || '--')}</td>
+        <td class="host">${escapeHtml(d.hostname || '--')}</td>
         <td class="seen" title="${escapeHtml(d.last_seen)}">${relativeTime(d.last_seen)}</td>
         <td><button class="rename" data-ip="${escapeHtml(d.ip)}" data-current="${escapeHtml(d.custom_name || '')}">rename</button></td>
       </tr>`;
@@ -360,8 +489,15 @@ async function refreshDevices() {
       <tbody>${rows}</tbody>
     </table>`;
 
+    // row click filters by device (but ignore clicks on the rename button)
+    container.querySelectorAll('tr[data-ip]').forEach(tr => {
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('button.rename') || e.target.closest('input.rename-input')) return;
+        setDeviceFilter(tr.dataset.ip);
+      });
+    });
     container.querySelectorAll('button.rename').forEach(btn => {
-      btn.addEventListener('click', () => startRename(btn));
+      btn.addEventListener('click', (e) => { e.stopPropagation(); startRename(btn); });
     });
   } catch (err) {
     console.error('failed to load devices', err);
@@ -384,6 +520,7 @@ function startRename(btn) {
   nameCell.appendChild(input);
   input.focus();
   input.select();
+  input.addEventListener('click', e => e.stopPropagation());
 
   const commit = async () => {
     const newName = input.value.trim();
@@ -409,17 +546,26 @@ function startRename(btn) {
   input.addEventListener('blur', commit);
 }
 
+/* -------------- live queries ------------------------------------- */
 async function refreshQueries() {
   const statusEl = document.getElementById('status');
   const container = document.getElementById('queries');
   try {
-    const res = await fetch('/api/queries?limit=100');
+    const url = new URL('/api/queries', location.origin);
+    url.searchParams.set('limit', '100');
+    if (ACTIVE_CATEGORY)  url.searchParams.set('category',  ACTIVE_CATEGORY);
+    if (ACTIVE_DEVICE_IP) url.searchParams.set('client_ip', ACTIVE_DEVICE_IP);
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
 
     if (!data || data.length === 0) {
-      container.innerHTML = '<div class="empty">no queries yet — configure your router\'s primary DNS to this machine</div>';
-      statusEl.textContent = 'online · no traffic yet';
+      const emptyMsg = (ACTIVE_CATEGORY || ACTIVE_DEVICE_IP)
+        ? 'no queries match the active filter yet'
+        : "no queries yet -- configure your router's primary DNS to this machine";
+      container.innerHTML = `<div class="empty">${emptyMsg}</div>`;
+      statusEl.textContent = 'online · no traffic';
       statusEl.style.color = 'var(--dim)';
       return;
     }
@@ -442,6 +588,7 @@ async function refreshQueries() {
   }
 }
 
+/* -------------- init --------------------------------------------- */
 loadCategories();
 refreshDevices();
 refreshQueries();

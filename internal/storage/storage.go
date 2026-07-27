@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -130,14 +131,32 @@ func (s *Store) InsertQuery(q Query) error {
 	return err
 }
 
-func (s *Store) RecentQueries(limit int) ([]Query, error) {
-	rows, err := s.db.Query(
-		`SELECT id, ts, client_ip, domain, query_type, responded, category
-		 FROM queries
-		 ORDER BY id DESC
-		 LIMIT ?`,
-		limit,
-	)
+// RecentQueries returns the newest queries ordered by id DESC. Optional
+// filters (empty string means no filter on that field):
+//   - category: exact match on queries.category (uses idx_queries_category)
+//   - clientIP: exact match on queries.client_ip (uses idx_queries_client_ip)
+//
+// The query is built dynamically but with parameterized placeholders so
+// there is no SQL injection risk.
+func (s *Store) RecentQueries(limit int, category, clientIP string) ([]Query, error) {
+	q := `SELECT id, ts, client_ip, domain, query_type, responded, category FROM queries`
+	args := make([]any, 0, 3)
+	where := make([]string, 0, 2)
+	if category != "" {
+		where = append(where, "category = ?")
+		args = append(args, category)
+	}
+	if clientIP != "" {
+		where = append(where, "client_ip = ?")
+		args = append(args, clientIP)
+	}
+	if len(where) > 0 {
+		q += " WHERE " + strings.Join(where, " AND ")
+	}
+	q += " ORDER BY id DESC LIMIT ?"
+	args = append(args, limit)
+
+	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +164,13 @@ func (s *Store) RecentQueries(limit int) ([]Query, error) {
 
 	out := make([]Query, 0, limit)
 	for rows.Next() {
-		var q Query
+		var qr Query
 		var responded int
-		if err := rows.Scan(&q.ID, &q.Timestamp, &q.ClientIP, &q.Domain, &q.Type, &responded, &q.Category); err != nil {
+		if err := rows.Scan(&qr.ID, &qr.Timestamp, &qr.ClientIP, &qr.Domain, &qr.Type, &responded, &qr.Category); err != nil {
 			return nil, err
 		}
-		q.Responded = responded != 0
-		out = append(out, q)
+		qr.Responded = responded != 0
+		out = append(out, qr)
 	}
 	return out, rows.Err()
 }

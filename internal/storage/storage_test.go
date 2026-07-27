@@ -50,7 +50,7 @@ func TestMigrationFromPreCategorySchema(t *testing.T) {
 	}
 	defer store.Close()
 
-	rows, err := store.RecentQueries(10)
+	rows, err := store.RecentQueries(10, "", "")
 	if err != nil {
 		t.Fatalf("RecentQueries: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestMigrationFromPreCategorySchema(t *testing.T) {
 		t.Fatalf("InsertQuery after migration: %v", err)
 	}
 
-	rows, err = store.RecentQueries(10)
+	rows, err = store.RecentQueries(10, "", "")
 	if err != nil {
 		t.Fatalf("RecentQueries after insert: %v", err)
 	}
