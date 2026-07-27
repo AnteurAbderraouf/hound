@@ -1,5 +1,4 @@
 #Requires -Version 5.1
-#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
     Cleanly remove hound from Windows.
@@ -10,6 +9,11 @@
       - Removes the three Windows Firewall rules (DNS UDP/TCP, UI HTTP)
       - Deletes %ProgramFiles%\hound (binary + wrapper)
       - Optionally deletes %ProgramData%\hound (the SQLite database)
+
+    Same shell-safe design as install.ps1: the body is wrapped in a
+    function, admin check uses `throw` rather than `#Requires`, and a
+    top-level try/catch prints failures without closing the caller's
+    PowerShell window when the script is invoked via `iwr | iex`.
 
 .PARAMETER InstallDir
     Where hound was installed. Defaults to %ProgramFiles%\hound.
@@ -39,66 +43,102 @@ function Write-Ok   { param($m) Write-Host "    [ok]   $m" -ForegroundColor Gree
 function Write-Info { param($m) Write-Host "    [info] $m" }
 function Write-Skip { param($m) Write-Host "    [skip] $m" -ForegroundColor DarkGray }
 
-function Invoke-OrDry {
-    param([string]$Description, [scriptblock]$Action)
-    if ($DryRun) { Write-Info "would: $Description" } else { Write-Info $Description; & $Action }
+function Test-IsAdministrator {
+    $identity  = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# ---------- task -----------------------------------------------------------
-Write-Step "removing scheduled task"
+function Invoke-HoundUninstall {
+    [CmdletBinding()]
+    param(
+        [string]$InstallDir,
+        [string]$DataDir,
+        [switch]$KeepData,
+        [switch]$DryRun
+    )
 
-$task = Get-ScheduledTask -TaskName 'hound' -ErrorAction SilentlyContinue
-if ($task) {
-    Invoke-OrDry "stop scheduled task 'hound'" {
-        Stop-ScheduledTask -TaskName 'hound' -ErrorAction SilentlyContinue
+    function Invoke-OrDry {
+        param([string]$Description, [scriptblock]$Action)
+        if ($DryRun) { Write-Info "would: $Description" } else { Write-Info $Description; & $Action }
     }
-    Invoke-OrDry "unregister scheduled task 'hound'" {
-        Unregister-ScheduledTask -TaskName 'hound' -Confirm:$false -ErrorAction SilentlyContinue
+
+    if (-not (Test-IsAdministrator)) {
+        throw "uninstall.ps1 requires Administrator privileges. Right-click Windows PowerShell -> 'Run as administrator', then retry."
     }
-    Write-Ok "task removed"
-} else {
-    Write-Skip "no 'hound' task registered"
-}
 
-# ---------- firewall -------------------------------------------------------
-Write-Step "removing firewall rules"
+    # ---- task -----------------------------------------------------------
+    Write-Step "removing scheduled task"
 
-foreach ($name in @('hound DNS UDP', 'hound DNS TCP', 'hound UI HTTP')) {
-    $rule = Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
-    if ($rule) {
-        Invoke-OrDry "remove rule '$name'" {
-            Remove-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
+    $task = Get-ScheduledTask -TaskName 'hound' -ErrorAction SilentlyContinue
+    if ($task) {
+        Invoke-OrDry "stop scheduled task 'hound'" {
+            Stop-ScheduledTask -TaskName 'hound' -ErrorAction SilentlyContinue
         }
+        Invoke-OrDry "unregister scheduled task 'hound'" {
+            Unregister-ScheduledTask -TaskName 'hound' -Confirm:$false -ErrorAction SilentlyContinue
+        }
+        Write-Ok "task removed"
     } else {
-        Write-Skip "'$name' not present"
+        Write-Skip "no 'hound' task registered"
     }
-}
 
-# ---------- binaries -------------------------------------------------------
-Write-Step "removing install directory"
+    # ---- firewall -------------------------------------------------------
+    Write-Step "removing firewall rules"
 
-if (Test-Path $InstallDir) {
-    Invoke-OrDry "delete $InstallDir" {
-        Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-} else {
-    Write-Skip "$InstallDir does not exist"
-}
-
-# ---------- data -----------------------------------------------------------
-Write-Step "data directory"
-
-if (Test-Path $DataDir) {
-    if ($KeepData) {
-        Write-Skip "keeping $DataDir (via -KeepData)"
-    } else {
-        Invoke-OrDry "delete $DataDir (SQLite db + WAL)" {
-            Remove-Item -Path $DataDir -Recurse -Force -ErrorAction SilentlyContinue
+    foreach ($name in @('hound DNS UDP', 'hound DNS TCP', 'hound UI HTTP')) {
+        $rule = Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
+        if ($rule) {
+            Invoke-OrDry "remove rule '$name'" {
+                Remove-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
+            }
+        } else {
+            Write-Skip "'$name' not present"
         }
     }
-} else {
-    Write-Skip "$DataDir does not exist"
+
+    # ---- binaries -------------------------------------------------------
+    Write-Step "removing install directory"
+
+    if (Test-Path $InstallDir) {
+        Invoke-OrDry "delete $InstallDir" {
+            Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    } else {
+        Write-Skip "$InstallDir does not exist"
+    }
+
+    # ---- data -----------------------------------------------------------
+    Write-Step "data directory"
+
+    if (Test-Path $DataDir) {
+        if ($KeepData) {
+            Write-Skip "keeping $DataDir (via -KeepData)"
+        } else {
+            Invoke-OrDry "delete $DataDir (SQLite db + WAL)" {
+                Remove-Item -Path $DataDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    } else {
+        Write-Skip "$DataDir does not exist"
+    }
+
+    Write-Host ""
+    Write-Host "==> hound removed. Router DNS settings on the LAN side are unchanged -- revert those manually if needed." -ForegroundColor Green
 }
 
-Write-Host ""
-Write-Host "==> hound removed. Router DNS settings on the LAN side are unchanged -- revert those manually if needed." -ForegroundColor Green
+# ---------- entry point ----------------------------------------------------
+
+try {
+    Invoke-HoundUninstall `
+        -InstallDir $InstallDir `
+        -DataDir    $DataDir `
+        -KeepData:  $KeepData `
+        -DryRun:    $DryRun
+} catch {
+    Write-Host ""
+    Write-Host "==> uninstall aborted." -ForegroundColor Red
+    Write-Host "    reason: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    # No `exit`: keep the parent shell alive under `iwr | iex`.
+}

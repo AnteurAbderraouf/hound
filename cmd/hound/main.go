@@ -20,7 +20,7 @@ import (
 
 // version is overridden at release time by goreleaser via ldflags.
 // See .goreleaser.yml -> builds.ldflags.
-var version = "0.3.1"
+var version = "0.3.2"
 
 // sinkAdapter bridges dns.Query into storage.Query so the two packages
 // don't depend on each other's types, and enriches each query with its
